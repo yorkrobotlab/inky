@@ -9,13 +9,23 @@ try:
 except ImportError:
     raise ImportError('This library requires the numpy module\nInstall with: sudo apt install python-numpy')
 
+try:
+    import board, busio
+except ImportError:
+    raise ImportError('This library requires the adafruit-blinka module')
+
+try:
+    from adafruit_mcp230xx.mcp23017 import MCP23017
+except ImportError:
+    raise ImportError('This library requires the adafruit-circuitpython-mcp230xx module')
+
 WHITE = 0
 BLACK = 1
 RED = YELLOW = 2
 
-RESET_PIN = 27
-BUSY_PIN = 17
-DC_PIN = 22
+RESET_PIN = 1
+BUSY_PIN = 2
+DC_PIN = 0
 
 MOSI_PIN = 10
 SCLK_PIN = 11
@@ -78,9 +88,11 @@ class Inky:
         self.buf = numpy.zeros((self.height, self.width), dtype=numpy.uint8)
         self.border_colour = 0
 
-        self.dc_pin = dc_pin
-        self.reset_pin = reset_pin
-        self.busy_pin = busy_pin
+        i2c = busio.I2C(board.SCL, board.SDA)
+        mcp = MCP23017(i2c, address=0x21)
+        self.dc_pin = mcp.get_pin(dc_pin)
+        self.reset_pin = mcp.get_pin(reset_pin)
+        self.busy_pin = mcp.get_pin(busy_pin)
         self.cs_pin = cs_pin
         self.h_flip = h_flip
         self.v_flip = v_flip
@@ -199,17 +211,11 @@ class Inky:
     def setup(self):
         """Set up Inky GPIO and reset display."""
         if not self._gpio_setup:
-            if self._gpio is None:
-                try:
-                    import RPi.GPIO as GPIO
-                    self._gpio = GPIO
-                except ImportError:
-                    raise ImportError('This library requires the RPi.GPIO module\nInstall with: sudo apt install python-rpi.gpio')
-            self._gpio.setmode(self._gpio.BCM)
-            self._gpio.setwarnings(False)
-            self._gpio.setup(self.dc_pin, self._gpio.OUT, initial=self._gpio.LOW, pull_up_down=self._gpio.PUD_OFF)
-            self._gpio.setup(self.reset_pin, self._gpio.OUT, initial=self._gpio.HIGH, pull_up_down=self._gpio.PUD_OFF)
-            self._gpio.setup(self.busy_pin, self._gpio.IN, pull_up_down=self._gpio.PUD_OFF)
+            self.dc_pin.value = False
+            self.dc_pin.switch_to_output()
+            self.reset_pin.value = True
+            self.reset_pin.switch_to_output()
+            self.busy_pin.switch_to_input()
 
             if self._spi_bus is None:
                 import spidev
@@ -220,9 +226,9 @@ class Inky:
 
             self._gpio_setup = True
 
-        self._gpio.output(self.reset_pin, self._gpio.LOW)
+        self.reset_pin.value = False
         time.sleep(0.1)
-        self._gpio.output(self.reset_pin, self._gpio.HIGH)
+        self.reset_pin.value = True
         time.sleep(0.1)
 
         self._send_command(0x12)  # Soft Reset
@@ -230,7 +236,7 @@ class Inky:
 
     def _busy_wait(self):
         """Wait for busy/wait pin."""
-        while(self._gpio.input(self.busy_pin) != self._gpio.LOW):
+        while(self.busy_pin.value):
             time.sleep(0.01)
 
     def _update(self, buf_a, buf_b, busy_wait=True):
@@ -348,7 +354,7 @@ class Inky:
         :param values: list of values to write
 
         """
-        self._gpio.output(self.dc_pin, dc)
+        self.dc_pin.value = dc
         try:
             self._spi_bus.xfer3(values)
         except AttributeError:

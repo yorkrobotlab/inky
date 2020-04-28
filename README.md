@@ -1,11 +1,8 @@
 # Inky
 
-[![Build Status](https://travis-ci.com/pimoroni/inky.svg?branch=master)](https://travis-ci.com/pimoroni/inky)
-[![Coverage Status](https://coveralls.io/repos/github/pimoroni/inky/badge.svg?branch=master)](https://coveralls.io/github/pimoroni/inky?branch=master)
-[![PyPi Package](https://img.shields.io/pypi/v/inky.svg)](https://pypi.python.org/pypi/inky)
-[![Python Versions](https://img.shields.io/pypi/pyversions/inky.svg)](https://pypi.python.org/pypi/inky)
-
 Python library for the [Inky pHAT](https://shop.pimoroni.com/products/inky-phat) and [Inky wHAT](https://shop.pimoroni.com/products/inky-what) e-paper displays.
+
+Modified to work on the [Pi-puck robot platform](https://github.com/yorkrobotlab/pi-puck), using the [YRL Expansion Board](https://github.com/yorkrobotlab/pi-puck-expansion-board).
 
 ## Inky pHAT
 
@@ -18,10 +15,10 @@ Python library for the [Inky pHAT](https://shop.pimoroni.com/products/inky-phat)
 
 # Installation
 
-The Python pip package is named inky, install with:
+Run the install script from this repository:
 
 ```
-sudo pip install inky
+sudo ./install.sh
 ```
 
 # Usage

@@ -38,7 +38,7 @@ classifiers = [
 
 setup(
     name='inky',
-    version='0.0.6',
+    version='0.0.6+pipuck',
     author='Philip Howard',
     author_email='phil@pimoroni.com',
     description='Inky pHAT Driver',
@@ -46,13 +46,13 @@ setup(
     license='MIT',
     keywords='Raspberry Pi e-paper display driver',
     url='http://www.pimoroni.com',
-    project_urls={'GitHub': 'https://www.github.com/pimoroni/inky'},
+    project_urls={'GitHub': 'https://www.github.com/yorkrobotlab/inky'},
     classifiers=classifiers,
     py_modules=[],
     packages=['inky'],
     include_package_data=True,
-    install_requires=['numpy'],
+    install_requires=['numpy', 'adafruit-blinka', 'adafruit-circuitpython-mcp230xx'],
     extras_require={
-        'rpi-gpio-output': ['spidev', 'RPi.GPIO', 'smbus2']
+        'rpi-gpio-output': ['spidev', 'smbus2']
     }
 )
