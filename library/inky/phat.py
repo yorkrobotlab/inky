@@ -13,10 +13,11 @@ class InkyPHAT(inky.Inky):
     RED = 2
     YELLOW = 2
 
-    def __init__(self, colour):
+    def __init__(self, colour, lut=None):
         """Initialise an Inky pHAT Display.
 
         :param colour: one of red, black or yellow, default: black
+        :param lut: override LUT type to use, default: None (matches 'colour')
 
         """
         inky.Inky.__init__(
@@ -24,4 +25,5 @@ class InkyPHAT(inky.Inky):
             resolution=(self.WIDTH, self.HEIGHT),
             colour=colour,
             h_flip=False,
-            v_flip=False)
+            v_flip=False,
+            lut=lut)

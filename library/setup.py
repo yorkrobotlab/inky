@@ -53,6 +53,6 @@ setup(
     include_package_data=True,
     install_requires=['numpy'],
     extras_require={
-        'rpi-gpio-output': ['spidev', 'smbus2']
+        'rpi-gpio-output': ['spidev']
     }
 )

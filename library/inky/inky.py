@@ -2,7 +2,6 @@
 import time
 import struct
 
-from . import eeprom
 from .mcp23017 import MCP23017
 
 try:
@@ -40,7 +39,7 @@ class Inky:
     RED = 2
     YELLOW = 2
 
-    def __init__(self, resolution=(400, 300), colour='black', cs_pin=CS0_PIN, dc_pin=DC_PIN, reset_pin=RESET_PIN, busy_pin=BUSY_PIN, h_flip=False, v_flip=False, spi_bus=None, i2c_bus=None, gpio=None):
+    def __init__(self, resolution=(400, 300), colour='black', cs_pin=CS0_PIN, dc_pin=DC_PIN, reset_pin=RESET_PIN, busy_pin=BUSY_PIN, h_flip=False, v_flip=False, lut=None, spi_bus=None):
         """Initialise an Inky Display.
 
         :param resolution: (width, height) in pixels, default: (400, 300)
@@ -51,10 +50,10 @@ class Inky:
         :param busy_pin: device busy/wait pin
         :param h_flip: enable horizontal display flip, default: False
         :param v_flip: enable vertical display flip, default: False
+        :param lut: override LUT type to use, default: None (matches 'colour')
 
         """
         self._spi_bus = spi_bus
-        self._i2c_bus = i2c_bus
 
         if resolution not in _RESOLUTION.keys():
             raise ValueError('Resolution {}x{} not supported!'.format(*resolution))
@@ -67,14 +66,10 @@ class Inky:
             raise ValueError('Colour {} is not supported!'.format(colour))
 
         self.colour = colour
-        self.eeprom = eeprom.read_eeprom(i2c_bus=i2c_bus)
-        self.lut = colour
-
-        if self.eeprom is not None:
-            if self.eeprom.width != self.width or self.eeprom.height != self.height:
-                raise ValueError('Supplied width/height do not match Inky: {}x{}'.format(self.eeprom.width, self.eeprom.height))
-            if self.eeprom.display_variant in (1, 6) and self.eeprom.get_color() == 'red':
-                self.lut = 'red_ht'
+        if lut is None:
+            self.lut = colour
+        else:
+            self.lut = lut
 
         self.buf = numpy.zeros((self.height, self.width), dtype=numpy.uint8)
         self.border_colour = 0
@@ -87,7 +82,6 @@ class Inky:
         self.h_flip = h_flip
         self.v_flip = v_flip
 
-        self._gpio = gpio
         self._gpio_setup = False
 
         """Inky Lookup Tables.
