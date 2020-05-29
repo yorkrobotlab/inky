@@ -51,7 +51,7 @@ setup(
     py_modules=[],
     packages=['inky'],
     include_package_data=True,
-    install_requires=['numpy', 'adafruit-blinka', 'adafruit-circuitpython-mcp230xx'],
+    install_requires=['numpy'],
     extras_require={
         'rpi-gpio-output': ['spidev', 'smbus2']
     }

@@ -3,21 +3,12 @@ import time
 import struct
 
 from . import eeprom
+from .mcp23017 import MCP23017
 
 try:
     import numpy
 except ImportError:
     raise ImportError('This library requires the numpy module\nInstall with: sudo apt install python-numpy')
-
-try:
-    import board, busio
-except ImportError:
-    raise ImportError('This library requires the adafruit-blinka module')
-
-try:
-    from adafruit_mcp230xx.mcp23017 import MCP23017
-except ImportError:
-    raise ImportError('This library requires the adafruit-circuitpython-mcp230xx module')
 
 WHITE = 0
 BLACK = 1
@@ -88,8 +79,7 @@ class Inky:
         self.buf = numpy.zeros((self.height, self.width), dtype=numpy.uint8)
         self.border_colour = 0
 
-        i2c = busio.I2C(board.SCL, board.SDA)
-        mcp = MCP23017(i2c, address=0x21)
+        mcp = MCP23017(3, 0x21)
         self.dc_pin = mcp.get_pin(dc_pin)
         self.reset_pin = mcp.get_pin(reset_pin)
         self.busy_pin = mcp.get_pin(busy_pin)
@@ -236,7 +226,7 @@ class Inky:
 
     def _busy_wait(self):
         """Wait for busy/wait pin."""
-        while(self.busy_pin.value):
+        while self.busy_pin.value:
             time.sleep(0.01)
 
     def _update(self, buf_a, buf_b, busy_wait=True):
