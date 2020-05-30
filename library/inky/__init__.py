@@ -6,7 +6,7 @@ from .what import InkyWHAT  # noqa: F401
 from .mock import InkyMockPHAT, InkyMockWHAT  # noqa: F401
 
 
-__version__ = '0.0.5.1+pipuck'
+__version__ = '0.0.5.1+pipuck2'
 
 try:
     from pkg_resources import declare_namespace

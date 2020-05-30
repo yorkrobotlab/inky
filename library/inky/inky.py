@@ -72,6 +72,7 @@ class Inky:
             self.lut = lut
 
         self.buf = numpy.zeros((self.height, self.width), dtype=numpy.uint8)
+        self.prev_region = numpy.packbits(numpy.where(self.buf == BLACK, 1, 0))
         self.border_colour = 0
 
         mcp = MCP23017(3, 0x21)
@@ -83,6 +84,7 @@ class Inky:
         self.v_flip = v_flip
 
         self._gpio_setup = False
+        self._initialised = False
 
         """Inky Lookup Tables.
 
@@ -189,6 +191,20 @@ class Inky:
                 0x10, 0x08, 0x08, 0x00, 0x20,
                 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00,
+            ],
+            'delta': [
+                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,  # No change
+                0b10000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,  # Black -> White
+                0b01000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,  # White -> Black
+                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,  # Not used
+                0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,  # VCOM
+                0x18, 0x00, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00,
             ]
         }
 
@@ -271,6 +287,8 @@ class Inky:
         self._send_command(0x44, [0x00, (self.cols // 8) - 1])  # Set RAM X Start/End
         self._send_command(0x45, [0x00, 0x00] + packed_height)  # Set RAM Y Start/End
 
+        self._initialised = True
+
         # 0x24 == RAM B/W, 0x26 == RAM Red/Yellow/etc
         for data in ((0x24, buf_a), (0x26, buf_b)):
             cmd, buf = data
@@ -283,8 +301,36 @@ class Inky:
         time.sleep(0.05)
 
         if busy_wait:
-            self._busy_wait()
-            self._send_command(0x10, 0x01)  # Enter Deep Sleep
+            self.deep_sleep()
+
+    def _update_delta(self, buf_a, buf_b, busy_wait=True):
+        """Update display using black/white difference from previous image.
+
+        :param buf_a: Pixels to clear from black to white
+        :param buf_b: Pixels to set from white to black
+
+        """
+        self._busy_wait()
+        self._send_command(0x32, self._luts['delta'])  # Set LUTs
+
+        # 0x24 == RAM B/W, 0x26 == RAM Red/Yellow/etc
+        for data in ((0x24, buf_a), (0x26, buf_b)):
+            cmd, buf = data
+            self._send_command(0x4e, 0x00)  # Set RAM X Pointer Start
+            self._send_command(0x4f, [0x00, 0x00])  # Set RAM Y Pointer Start
+            self._send_command(cmd, buf)
+
+        self._send_command(0x22, 0xC7)  # Display Update Sequence
+        self._send_command(0x20)  # Trigger Display Update
+        time.sleep(0.05)
+
+        if busy_wait:
+            self.deep_sleep()
+
+    def deep_sleep(self):
+        self._busy_wait()
+        self._send_command(0x10, 0x01)  # Enter Deep Sleep
+        self._initialised = False
 
     def set_pixel(self, x, y, v):
         """Set a single pixel.
@@ -314,10 +360,46 @@ class Inky:
         if self.rotation:
             region = numpy.rot90(region, self.rotation // 90)
 
+        delta_region = numpy.packbits(numpy.where(region == BLACK, 1, 0))
+
         buf_a = numpy.packbits(numpy.where(region == BLACK, 0, 1)).tolist()
         buf_b = numpy.packbits(numpy.where(region == RED, 1, 0)).tolist()
 
         self._update(buf_a, buf_b, busy_wait=busy_wait)
+
+        self.prev_region = delta_region
+
+    def show_delta(self, busy_wait=False):
+        """Show buffer on display, using a differential update.
+
+        :param busy_wait: If True, wait for display update to finish before returning.
+
+        """
+        region = self.buf
+
+        if self.v_flip:
+            region = numpy.fliplr(region)
+
+        if self.h_flip:
+            region = numpy.flipud(region)
+
+        if self.rotation:
+            region = numpy.rot90(region, self.rotation // 90)
+
+        delta_region = numpy.packbits(numpy.where(region == BLACK, 1, 0))
+
+        if self._initialised:
+            # buf_a = 1 when previous = 1 and current = 0
+            # buf_b = 1 when previous = 0 and current = 1
+            buf_a = numpy.bitwise_and(self.prev_region, numpy.invert(delta_region)).tolist()
+            buf_b = numpy.bitwise_and(numpy.invert(self.prev_region), delta_region).tolist()
+            self._update_delta(buf_a, buf_b, busy_wait=busy_wait)
+        else:
+            buf_a = numpy.packbits(numpy.where(region == BLACK, 0, 1)).tolist()
+            buf_b = numpy.packbits(numpy.where(region == RED, 1, 0)).tolist()
+            self._update(buf_a, buf_b, busy_wait=busy_wait)
+
+        self.prev_region = delta_region
 
     def set_border(self, colour):
         """Set the border colour."""
